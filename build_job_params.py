@@ -7,22 +7,31 @@ import json
 import argparse
 import re
 import sys
+import base64
 
 parser = argparse.ArgumentParser(description='Get build parameters from a Jenkins build URL.')
 parser.add_argument('build_url', metavar='URL',
     help='a specific Jenkins job build url, like http://<jenkins>/job/<jobname>/42')
 args = parser.parse_args()
 
-m = re.match(".*/\d+/?", args.build_url)
+build_url = args.build_url
+build_api_url = '{}/api/json'.format(build_url)
+
+m = re.match(".*/\d+/?", build_url)
 if not m:
     print "Build URL must end in a number. It must be a link to a specific build!"
     sys.exit(-1)
 
-print 'Jenkins build URL: {}'.format(args.build_url)
+print 'Jenkins build URL: {}'.format(build_url)
+
+username = 'akos'
+password = '9ff85ba6e0beb00208ee84b998650cf8' # only a local api key, no harm commiting it
 
 try:
-    json_response = urllib2.urlopen('{}/api/json'.format(args.build_url))
-    build_api_json = json.load(json_response)
+    request = urllib2.Request(build_api_url)
+    request.add_header('Authorization', b'Basic ' + base64.b64encode(username + b':' + password))
+    result = urllib2.urlopen(request)
+    build_api_json = json.load(result)
     build_action = build_api_json[u'actions'][0]
 
     if u'parameters' in build_action:
@@ -32,7 +41,7 @@ try:
         print "No parameters"
 
 except urllib2.HTTPError as e:
-    print 'Build URL not found: {}'.format(args.build_url)
+    print 'Build URL not found: {}'.format(build_url)
     print e
 except Exception as e:
     print type(e)
